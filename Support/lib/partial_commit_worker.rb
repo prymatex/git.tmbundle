@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+require ENV['TM_SUPPORT_PATH'] + '/lib/ui.rb'
 CW = ENV['TM_SCM_COMMIT_WINDOW']
 
 module PartialCommitWorker
@@ -39,15 +40,23 @@ module PartialCommitWorker
     def exec_commit_dialog
       files, statuses = split_file_statuses
       
-      res = %x{cd "#{git.path}" && #{e_sh CW}                 \
-        --diff-cmd   '#{git.git},diff'        \
-        --action-cmd "M,D:Revert,#{status_helper_tool},revert" \
-        --action-cmd "?:Delete,#{status_helper_tool},delete" \
-        --status #{statuses.join(':')}       \
-        #{files.map{ |f| e_sh(f) }.join(' ')} 2>/dev/console
-      }
+      params = {
+            'title' => "Commit", 
+            'base-path' => git.path,
+            'diff-cmd' => git.git + ',diff', 
+            'action-cmd' => [ "M,D:Revert," + status_helper_tool + ",revert", "?:Delete," + status_helper_tool + ",delete" ],
+            'status' => statuses.join(':'),
+            'files' => files.map{ |f| e_sh(f) }.join(' ')
+            }
+    
+      res = %x{#{TM_DIALOG} -cmp #{e_sh params.to_plist} #{e_sh(CWNib)}}
       canceled = ($? != 0)
+      
+      res = OSX::PropertyList::load(res)
+      res = res['result']
+      
       res   = Shellwords.shellwords(res)
+      canceled = res[0] == 'cancel'
       msg = res[1]
       files = res[2..-1]
       return canceled, msg, files
