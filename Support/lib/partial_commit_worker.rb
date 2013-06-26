@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 require ENV['TM_SUPPORT_PATH'] + '/lib/ui.rb'
-CW = ENV['TM_SCM_COMMIT_WINDOW']
+CWNib = ENV['TM_SCM_COMMIT_WINDOW']
 
 module PartialCommitWorker
   class NotOnBranchException < Exception; end
