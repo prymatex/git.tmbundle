@@ -77,7 +77,11 @@ module SCM
     
     # The absolute path to working copy
     def path
-      @path ||= File.expand_path('..', git_dir(paths.first))
+      @path ||= %x{
+        cd #{e_sh dir_part(paths.first)}
+        #{git} rev-parse --show-toplevel;
+        cd - > /dev/null;
+      }.chomp
     end
     
     def root
@@ -132,7 +136,7 @@ module SCM
       end
     end
 
-    def git_dir(file_or_dir)
+    def git_dir(file_or_dir = paths.first)
       file = %x{
         cd #{e_sh dir_part(file_or_dir)}
         #{git} rev-parse --git-dir;
@@ -305,9 +309,10 @@ module SCM
     
     def annotate(file_path, revision = nil)
       file = make_local_path(file_path)
-      args = [file]
-      args << revision unless revision.nil? || revision.empty?
-      output = command("annotate", *args)
+      args = []
+      args += ["--follow", revision, "--"] unless revision.nil? || revision.empty?
+      args << file
+      output = command("blame", *args)
       if output.match(/^fatal:/)
         puts output 
         return nil
@@ -371,6 +376,8 @@ module SCM
       params = ["log", "--date=default", "--format=medium"]
       params += ["-n", options[:limit]] if options[:limit]
       params << "-p" if options[:with_log]
+      params << "--follow" if options[:follow]
+      params << "--name-only" if options[:name]
       params << options[:branch]  if options[:branch]
       
       lr = get_range_arg(options)
